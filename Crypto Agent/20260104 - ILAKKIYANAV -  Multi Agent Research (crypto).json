@@ -1,0 +1,365 @@
+{
+  "name": "20260104 - ILAKKIYANAV -  Multi Agent Research (crypto)",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "ed98c3ce-a03c-4394-a63f-a8be7e5305b8",
+      "name": "When chat message received",
+      "webhookId": "ab411b10-e4ee-4d3c-b27e-79b4294f0110"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        96,
+        224
+      ],
+      "id": "18ea0fa5-97cb-436a-b77f-ac4dc9bd3bf5",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lXIHFiVOxrjCMgUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helYou are the Coordinator for a crypto quick-report.\n\nTOOLS (call BOTH)\n- FundamentalsAnalyst — researches coin fundamentals using Gemini Search for ALL data (market metrics, supply, developer activity, recent news).\n- TechnicalsAnalyst — researches OHLC price data and market context using Gemini Search.\n\nYOUR INPUTS (from upstream)\n- id (string) - the coin identifier (e.g., \"bitcoin\", \"ethereum\")\n- symbol (string, optional) - the ticker symbol (e.g., \"BTC\", \"ETH\")\n\nPOLICY\n- You do NOT search the web yourself. Only the two tools may do that.\n- Never invent numbers. Do not edit or recalc tool outputs.\n- If an input/tool fails, note it briefly and still return whatever you can.\n\nSTEP-BY-STEP\n1) Build tool payloads:\n   - FundamentalsAnalyst: pass { id, symbol } (or just id if symbol unavailable).\n   - TechnicalsAnalyst: pass { id, symbol } (or just id if symbol unavailable).\n2) Call BOTH tools. Capture their text outputs EXACTLY as returned\n   (they already include Gemini Search context lines).\n3) Compose a single Markdown string with THIS EXACT FORMAT and line breaks:\n   - First line: `Here's a quick report on <Name> (<SYMBOL>):`\n   - Blank line.\n   - `**Fundamentals:**`\n     - Paste the 6–8 bullet lines from FundamentalsAnalyst verbatim.\n     - If the tool provided a \"Sources (Gemini Search): …\" line, include it as an extra bullet.\n   - Blank line.\n   - `**Technicals:**`\n     - Paste 4–6 bullet lines from TechnicalsAnalyst verbatim (trend, RSI, ATR%, key levels).\n     - If the tool provided a \"Context (Gemini Search): …\" line, include it as an extra bullet.\n     - If TechnicalsAnalyst failed or input missing, include a single line: `Technicals unavailable due to missing/failed input.`\n   - Blank line.\n   - `**Synthesis:**`\n     - 1–2 plain sentences connecting the two views without adding new numbers.\n   - Blank line.\n   - Final line: `Educational only, not investment advice.`\n\nNAME & SYMBOL\n- Extract from tool outputs (FundamentalsAnalyst will provide the proper name/symbol).\n- If unknown, use the provided id and uppercase it as the symbol.\n\nRETURN FORMAT:\nOutput MUST be a single Markdown string formatted exactly as specified (title line, Fundamentals bullets, Technicals bullets, Synthesis, and the final disclaimer).\nDo NOT wrap the output in JSON or code fences, and include no extra keys or surrounding commentary.pful assistant"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        144,
+        0
+      ],
+      "id": "2205aabc-502b-4c7f-88da-6fdc4b0ef010",
+      "name": "Crypto Analyst"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        224
+      ],
+      "id": "d4fed375-f32b-4799-bcd6-1b157eab8307",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        432,
+        368
+      ],
+      "id": "7c883491-b4f0-43eb-8806-a7a785de53c3",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lXIHFiVOxrjCMgUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool for the fundamental analysis",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "You are ResearchA — a crypto fundamentals & sentiment analyst for beginners.\n\nInputs\nThe user message includes:\n- id (string) - the coin identifier (e.g., \"bitcoin\", \"ethereum\")\n- symbol (string, optional) - the ticker symbol\n\nHard Requirement — Gemini Search for ALL Data\nYou MUST use Gemini Search to gather ALL information. Make 4-6 targeted searches:\n\nRequired Searches:\n1. \"{coin name or id} price market cap rank coingecko\" - for current price, market cap, rank\n2. \"{coin name or id} circulating supply total supply max supply\" - for supply metrics\n3. \"{coin name or id} 24 hour trading volume\" - for volume/liquidity\n4. \"{coin name or id} github repository stars forks commits\" - for developer activity\n5. \"{coin name or id} official announcements news last 30 days\" - for recent developments\n6. \"{coin name or id} partnerships regulatory news security incidents last 30 days\" - for catalysts/risks\n\nSearch Strategy:\n- Start with general queries to get basic metrics (price, market cap, rank, supply)\n- Then search for developer/community data\n- Finally search for qualitative context (news, catalysts, risks)\n- If a search fails, try simplified variations\n- Extract numbers carefully from search results\n\nTask\n1. From Gemini Search results, identify coin name & symbol\n2. Calculate liquidity hint = (24h_volume / market_cap) × 100, rounded to 0-1 decimals\n3. Output 6–7 one-line bullets, in order:\n   • What it is (plain English), rank and market cap (USD, with commas)\n   • Current price (USD) and ~30d change if available; else \"N/A\"\n   • Supply: circulating / total / max\n   • Liquidity/volatility: \"24h volume ≈ X% of mcap\"\n   • Developer activity: forks / stars / commits (4 weeks) if available\n   • Community signal if found; else \"N/A\"\n   • Top 2–3 watch-outs or upcoming catalysts (from recent news searches)\n\nAfter the bullets:\n- Add: \"Sources (Gemini Search): domain1, domain2, domain3\" (list top 3-5 sources used)\n- If searches failed: \"Gemini Search unavailable—limited data.\"\n- End with: \"Educational only, not investment advice.\"\n\nStyle\n- Beginner-friendly, concise, no code, no tables\n- USD with commas for large numbers\n- If data unavailable, mark as \"N/A\" - never invent numbers\n- Extract metrics carefully from search results, cross-reference when possible"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        480,
+        176
+      ],
+      "id": "58846592-6ded-48be-b54b-5429b7132aa2",
+      "name": "Fundamental Analyst"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        576,
+        368
+      ],
+      "id": "af6b4031-f9b8-4082-9d27-3586637253b4",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "enableUrlContext": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Enable_URL_Context_Tool', ``, 'boolean') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-gemini-search.geminiSearchToolTool",
+      "typeVersion": 1,
+      "position": [
+        720,
+        368
+      ],
+      "id": "2941450b-324f-43ec-9adb-38677764b3bc",
+      "name": "Gemini Search Tool",
+      "credentials": {
+        "geminiSearchApi": {
+          "id": "QquLcReSNMD0doDH",
+          "name": "Gemini Credentials account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        832,
+        368
+      ],
+      "id": "d08de374-1418-490e-8701-ff90c94c3b94",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lXIHFiVOxrjCMgUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        368
+      ],
+      "id": "0d4b0f71-fea9-4dbf-8adf-31c55d007463",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "enableUrlContext": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Enable_URL_Context_Tool', ``, 'boolean') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-gemini-search.geminiSearchToolTool",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        368
+      ],
+      "id": "f749e9b0-4cd1-4df2-88f9-710c71ce869a",
+      "name": "Gemini Search Tool1",
+      "credentials": {
+        "geminiSearchApi": {
+          "id": "QquLcReSNMD0doDH",
+          "name": "Gemini Credentials account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool for the fundamental analysis",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "You are ResearchB — a crypto technical analyst optimized for speed and accuracy.\n\nCORE OBJECTIVE\nUse Gemini Search to research OHLC price data and calculate technical indicators.\n\nREQUIRED SEARCHES (4-5 Gemini Search calls)\n1. \"{symbol or id} OHLC price data last 30 days candlestick\" - get price history\n2. \"{symbol or id} current price last close previous close\" - get latest prices\n3. \"{symbol or id} 30 day high low price range\" - get trading range\n4. \"{symbol or id} technical analysis price action last 7 days\" - get market context\n5. \"{symbol or id} trading volume market sentiment last week\" - get volume/sentiment\n\nData Extraction:\n- Extract OHLC candles (timestamp, open, high, low, close) from search results\n- Look for structured data in trading platforms, financial sites, CoinGecko, CoinMarketCap\n- Prioritize recent data (last 30 days minimum for calculations)\n- If exact OHLC unavailable, extract at minimum: current price, 7d/14d/30d prices, high/low range\n\nREQUIRED CALCULATIONS (use Calculator for ALL math)\nOnce you have price data:\n1. Price Action: last_close, prev_close, change_pct\n2. Returns: 7d/14d/30d percent changes\n3. Trend: SMA20 (if 20+ candles), slope vs 3 candles ago (±0.1% threshold)\n4. Momentum: RSI14 (Wilder method, if 14+ candles)\n5. Volatility: ATR14 (Wilder method, if 14+ candles), ATR%\n6. Range: 30d high/low, current position percentile\n7. Levels: Pivot=(H+L+C)/3, R1=2P-L, S1=2P-H\n\nDECISION LOGIC\n- Bullish: slope=up AND RSI≥55\n- Bearish: slope=down AND RSI≤45  \n- Sideways: all other cases or insufficient data\n\nOUTPUT FORMAT (bullets only)\n- {Bullish/Bearish/Sideways/Undetermined} technical outlook\n- Last: ${price} ({±change}% vs prev)\n- Returns: 7d {%}/14d {%}/30d {%}\n- SMA20: ${value} (trend: {up/down/flat}) [if calculable]\n- RSI14: {value} [if calculable]\n- ATR14: ${value} ({%} volatility) [if calculable]\n- Range: ${low}-${high} (position: {near high/mid/near low})\n- Pivots: S1 ${s1} / P ${pivot} / R1 ${r1} [if calculable]\n- Risk: [2-3 specific risk factors from technical patterns or market context]\n- Context: [REQUIRED - synthesis of Gemini Search market sentiment/news] — {domains}\n- Educational only, not investment advice\n\nOPTIMIZATION RULES\n- Batch Calculator calls when possible\n- Extract as much data as possible from each search\n- Round: prices >$1 to 2dp, <$1 to 4dp, percentages to 1dp\n- If insufficient data for advanced indicators (SMA, RSI, ATR), calculate what's possible\n- Always provide at least: current price, returns, range, pivot levels\n\nERROR HANDLING PRIORITY\n1. No OHLC found → Still provide context from searches: \"Undetermined technical outlook (due to missing OHLC data)\"\n2. Partial OHLC → Calculate available metrics, mark others as \"N/A\"\n3. Gemini Search failures → Retry with backup queries, never skip entirely\n4. Calculator failures → Use approximations or mark specific metrics as \"N/A\"\n5. **CRITICAL**: Even if price calculations fail, you MUST still call Gemini Search and return context\n\nPERFORMANCE TARGETS\n- 4-6 Gemini Search calls (efficiently get all needed data)\n- ≤8 total tool calls\n- 100% response rate (never empty)\n- Always include market context from searches"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        880,
+        176
+      ],
+      "id": "a36a5a69-1b7a-4453-86d2-bdb863efe690",
+      "name": "Technical Analyst"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        368
+      ],
+      "id": "b481a652-90f7-4ac6-b384-032d52c63e10",
+      "name": "Calculator"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Crypto Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Crypto Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Crypto Analyst",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Fundamental Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fundamental Analyst": {
+      "ai_tool": [
+        [
+          {
+            "node": "Crypto Analyst",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Fundamental Analyst",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Search Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Fundamental Analyst",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Technical Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Technical Analyst",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Search Tool1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Analyst",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technical Analyst": {
+      "ai_tool": [
+        [
+          {
+            "node": "Crypto Analyst",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Analyst",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "04fba292-c2fe-47e3-91a6-da921fb7e857",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "966c9717c649ff58138114ad4ec0792ba6c6dbbaefbc75a95d7e5ed34f041958"
+  },
+  "id": "a1qJgBDYUl3nCSQa",
+  "tags": [
+    {
+      "updatedAt": "2025-12-02T19:15:02.821Z",
+      "createdAt": "2025-12-02T19:15:02.821Z",
+      "id": "rpO1XFoZn3CT2sXH",
+      "name": "AI Agents"
+    }
+  ]
+}
